@@ -1,5 +1,0 @@
-langchain_core
-langchain_community
-streamlit
-python-dotenv
-pypdf
