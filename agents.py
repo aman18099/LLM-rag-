@@ -9,7 +9,9 @@ from langchain.tools.retriever import create_retriever_tool
 from langchain_community.utilities import ArxivAPIWrapper
 from langchain_community.tools import ArxivQueryRun
 from langchain.agents import create_openai_tools_agent
-
+from langchain import hub
+from langchain_openai import ChatOpenAI
+from langchain.agents import AgentExecutor
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -24,12 +26,30 @@ documents=RecursiveCharacterTextSplitter(chunk_size=1000,chunk_overlap=200).spli
 vectordb=Chroma.from_documents(documents,OpenAIEmbeddings())
 retriever=vectordb.as_retriever()
 
-retrieval_tools = create_retriever_tool(retriever ,"langsmith_search","Search for information about LangSmith. For any questions about LangSmith, you must use this tool!")
+retrieval_tool = create_retriever_tool(
+    retriever,
+    name="langsmith_tool",
+    description="Use this tool to answer any question related to LangSmith documentation, features, usage, or APIs."
+)
 
-print(retrieval_tools.name)
+print(retrieval_tool.name)
 
 arxiv_wrapper=ArxivAPIWrapper(top_k_results=1, doc_content_chars_max=200)
 arxiv=ArxivQueryRun(api_wrapper=arxiv_wrapper)
 print(arxiv.name)
 
-tools = [wiki, retrieval_tools, arxiv]
+tools = [wiki, arxiv, retrieval_tool]
+
+llm = ChatOpenAI(
+    model_name="gpt-3.5-turbo-0125",  
+    temperature=0,   
+)
+prompt = hub.pull("hwchase17/openai-functions-agent")
+
+agent = create_openai_tools_agent(llm, tools , prompt)
+
+executor = AgentExecutor(agent= agent, tools= tools , verbose = True)
+# print(executor)
+
+result = executor.invoke({"input":"What's the paper 1605.08386 about?"})
+print(result)
